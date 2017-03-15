@@ -286,6 +286,7 @@ tensorflow::serving::PlatformConfigMap ParsePlatformConfigMap(
 int main(int argc, char** argv) {
   tensorflow::int32 port = 8500;
   bool enable_batching = false;
+  tensorflow::int32 tensorflow_gpu_memory_percent = 100;
   tensorflow::string batching_parameters_file;
   tensorflow::string model_name = "default";
   tensorflow::int32 file_system_poll_wait_seconds = 1;
@@ -342,6 +343,13 @@ int main(int argc, char** argv) {
                        "Tensorflow session. Auto-configured by default."
                        "Note that this option is ignored if "
                        "--platform_config_file is non-empty."),
+     tensorflow::Flag("tensorflow_gpu_memory_percent",
+                      &tensorflow_gpu_memory_percent,
+                      "Percent of overall amount of memory that each visible "
+                      "GPU should be allocated. For example, you can tell "
+                      "TensorFlow to only allocate 40% of the total memory of "
+                      "each GPU by specifyng 40. Default uses all available "
+                      "memory."),
       tensorflow::Flag("platform_config_file", &platform_config_file,
                        "If non-empty, read an ascii PlatformConfigMap protobuf "
                        "from the supplied file name, and use that platform "
@@ -399,10 +407,13 @@ int main(int argc, char** argv) {
              "--enable_batching";
     }
 
+    double tensorflow_gpu_memory_fraction = tensorflow_gpu_memory_percent / 100.0;
     session_bundle_config.mutable_session_config()
         ->set_intra_op_parallelism_threads(tensorflow_session_parallelism);
     session_bundle_config.mutable_session_config()
         ->set_inter_op_parallelism_threads(tensorflow_session_parallelism);
+    session_bundle_config.mutable_session_config()->mutable_gpu_options()
+        ->set_per_process_gpu_memory_fraction(tensorflow_gpu_memory_fraction);
     options.platform_config_map = CreateTensorFlowPlatformConfigMap(
         session_bundle_config, use_saved_model);
   } else {
